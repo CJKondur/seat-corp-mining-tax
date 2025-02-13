@@ -214,41 +214,59 @@ class MiningTaxService
                 }
             }
         /*
-         *  Calculate Event Mining Tax
-         */
-        $miningEventResult = $eventService->createEventMiningTax($month, $year);
+         *  Calculate Event Mining Tax
+         */
+        $miningEventResult = $eventService->createEventMiningTax($month, $year);
 
-        foreach ($miningEventResult as $eventData) {
-            $characterId = CharacterHelper::getCharacterIdByName($eventData->character_name);
-            if ($miningResult->hasCharacterData($characterId)) {
-                $event_character_id = $characterId;
-            } else {
-                $characterData = CharacterHelper::getMainCharacterCharacter($characterId);
-                $charData = new CharacterData(
-                    $characterData->main_character_id,
-                    $characterData->main_character_id,
-                    $characterData->name
-                );
-                $miningResult->addCharacterData($charData);
-                $event_character_id = $characterData->main_character_id;
-            }
-            foreach (Reprocessing::ReprocessOreByTypeId($eventData->type_id, $eventData->quantity, (float)($settings['ore_refining_rate'] / 100)) as $key => $value) {
+        foreach ($miningEventResult as $eventData) {
+            $characterId = CharacterHelper::getCharacterIdByName($eventData->character_name);
+            if ($miningResult->hasCharacterData($characterId)) {
+                $event_character_id = $characterId;
+            } else {
+                $characterData = CharacterHelper::getMainCharacterCharacter($characterId);
+                $charData = new CharacterData(
+                    $characterData->main_character_id,
+                    $characterData->main_character_id,
+                    $characterData->name
+                );
+                $miningResult->addCharacterData($charData);
+                $event_character_id = $characterData->main_character_id;
+            }
 
-                if ($settings['ore_valuation_price'] == 'Ore Price') {
-                    if ($settings['price_provider'] == 'Eve Market')
-                        $price = EveMarketHelper::getItemPriceById($eventData->type_id) * $eventData->quantity;
-                    else
-                        $price = EveJaniceHelper::getItemPriceByTypeId($eventData->type_id) * $eventData->quantity;
-                } else {
-                    if ($settings['price_provider'] == 'Eve Market')
-                        $price = EveMarketHelper::getItemPriceById($key) * $value;
-                    else
-                        $price = EveJaniceHelper::getItemPriceByTypeId($key) * $value;
+                // Whitelist Check START
+                $corporation_id = $eventData->corporation_id; // Get the corporation ID
+                $solar_system_id = $eventData->solar_system_id; // Get the solar system ID
+
+                $whitelisted_systems_string = $eventService->getSetting('whitelisted_systems', $corporation_id); // Assuming getSetting exists in $eventService
+                $whitelist = [];
+
+                if ($whitelisted_systems_string) {
+                    $whitelist = array_map('intval', explode(',', $whitelisted_systems_string));
                 }
-                $tax_rate = $eventService->getEventMiningTaxRate($eventData->event_id);
-                $miningResult->characterData[$event_character_id]->addEventTax($price*($tax_rate/100));
-            }
-        }
-        return $miningResult;
+
+                if (!empty($whitelist) && !in_array($solar_system_id, $whitelist)) {
+                    // Skip tax calculation for this event if not whitelisted
+                    continue; // Go to the next $eventData
+                }
+                // Whitelist Check END
+
+            foreach (Reprocessing::ReprocessOreByTypeId($eventData->type_id, $eventData->quantity, (float)($settings['ore_refining_rate'] / 100)) as $key => $value) {
+
+                if ($settings['ore_valuation_price'] == 'Ore Price') {
+                    if ($settings['price_provider'] == 'Eve Market')
+                        $price = EveMarketHelper::getItemPriceById($eventData->type_id) * $eventData->quantity;
+                    else
+                        $price = EveJaniceHelper::getItemPriceByTypeId($eventData->type_id) * $eventData->quantity;
+                } else {
+                    if ($settings['price_provider'] == 'Eve Market')
+                        $price = EveMarketHelper::getItemPriceById($key) * $value;
+                    else
+                        $price = EveJaniceHelper::getItemPriceByTypeId($key) * $value;
+                }
+                $tax_rate = $eventService->getEventMiningTaxRate($eventData->event_id);
+                $miningResult->characterData[$event_character_id]->addEventTax($price*($tax_rate/100));
+            }
+        }
+        return $miningResult;
     }
 }

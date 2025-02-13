@@ -25,6 +25,11 @@
                                 <select class="groupSearch form-control input-xs" name="corporation_id" id="corporation_id"></select>
                             </div>
                         </div>
+						<div class="form-group-row">
+							<label for="whitelisted_systems">Whitelisted Solar Systems (comma-separated IDs)</label>
+							<textarea name="whitelisted_systems" id="whitelisted_systems" class="form-control" rows="3">{{ $settings['whitelisted_systems'] ?? '' }}</textarea>
+							<small class="form-text text-muted">Enter solar system IDs, separated by commas. Leave blank to tax all systems.</small>
+						</div>
                         <div class="form-group-row">
                             <label class="col-md4 col-form-label" for="ore_refining_rate">Ore Refining Rate</label>
                             <div class="col-md-12">
